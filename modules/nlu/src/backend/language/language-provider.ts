@@ -13,7 +13,15 @@ import semver from 'semver'
 
 import { setSimilarity, vocabNGram } from '../tools/strings'
 import { isSpace, processUtteranceTokens, restoreOriginalUtteranceCasing } from '../tools/token-utils'
-import { Gateway, LangsGateway, LanguageProvider, LanguageSource, NLUHealth, Token2Vec, NLUState } from '../typings'
+import {
+  Gateway,
+  LangsGateway,
+  LanguageProvider,
+  LanguageSource,
+  NLUHealth,
+  Token2Vec,
+  NLUVersionInfo
+} from '../typings'
 
 const debug = DEBUG('nlu').sub('lang')
 
@@ -40,7 +48,7 @@ export class RemoteLanguageProvider implements LanguageProvider {
   private _validProvidersCount: number
   private _languageDims: number
 
-  private _state: NLUState
+  private _version: Partial<NLUVersionInfo>
 
   private discoveryRetryPolicy = {
     interval: 1000,
@@ -60,8 +68,12 @@ export class RemoteLanguageProvider implements LanguageProvider {
     debug(`[${lang.toUpperCase()}] Language Provider added %o`, source)
   }
 
-  async initialize(sources: LanguageSource[], logger: typeof sdk.logger, state: NLUState): Promise<LanguageProvider> {
-    this._state = state
+  async initialize(
+    sources: LanguageSource[],
+    logger: typeof sdk.logger,
+    version: Partial<NLUVersionInfo>
+  ): Promise<LanguageProvider> {
+    this._version = version
     this._validProvidersCount = 0
 
     this._vectorsCache = new lru<string, Float32Array>({
@@ -156,7 +168,7 @@ export class RemoteLanguageProvider implements LanguageProvider {
     if (!version) {
       throw new Error('Lang server has an invalid version')
     }
-    this._state.langServerVersion = semver.clean(version)
+    this._version.langServerVersion = semver.clean(version)
   }
 
   private computeCacheFilesPaths = () => {
@@ -505,7 +517,7 @@ export class RemoteLanguageProvider implements LanguageProvider {
   }
 
   private computeVersionHash = () => {
-    const { nluVersion, langServerVersion } = this._state
+    const { nluVersion, langServerVersion } = this._version
 
     const omitPatchNumber = (v: string) => `${semver.major(v)}.${semver.minor(v)}.0`
     const hashContent = `${omitPatchNumber(nluVersion)}:${omitPatchNumber(langServerVersion)}`

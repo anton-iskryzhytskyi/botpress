@@ -71,14 +71,17 @@ export interface EntityService {
   updateEntity(x: string, y: sdk.NLU.EntityDefinition): Promise<void>
 }
 
-export interface NLUState {
-  nluVersion?: string
-  langServerVersion?: string
+export interface NLUState extends Partial<NLUVersionInfo> {
   nluByBot: _.Dictionary<BotState>
   languageProvider?: LanguageProvider
   health?: NLUHealth
   broadcastLoadModel?: (botId: string, hash: string, language: string) => Promise<void>
   broadcastCancelTraining?: (botId: string, language: string) => Promise<void>
+}
+
+export interface NLUVersionInfo {
+  nluVersion: string
+  langServerVersion: string
 }
 
 export interface BotState {
