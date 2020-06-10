@@ -71,7 +71,7 @@ export interface EntityService {
   updateEntity(x: string, y: sdk.NLU.EntityDefinition): Promise<void>
 }
 
-export interface NLUState extends Partial<NLUVersionInfo> {
+export interface NLUState extends NLUVersionInfo {
   nluByBot: _.Dictionary<BotState>
   languageProvider?: LanguageProvider
   health?: NLUHealth
