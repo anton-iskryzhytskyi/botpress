@@ -41,7 +41,6 @@ export function getOnBotMount(state: NLUState) {
 
         const intentDefs = await getIntents(ghost)
         const entityDefs = await entityService.getCustomEntities()
-        const hash = ModelService.computeModelHash(intentDefs, entityDefs, state)
 
         const kvs = bp.kvs.forBot(botId)
         await kvs.set(KVS_TRAINING_STATUS_KEY, 'training')
@@ -53,6 +52,8 @@ export function getOnBotMount(state: NLUState) {
             if (!lock) {
               return
             }
+
+            const hash = ModelService.computeModelHash(intentDefs, entityDefs, state, languageCode)
             await ModelService.pruneModels(ghost, languageCode)
             let model = await ModelService.getModel(ghost, hash, languageCode)
 
