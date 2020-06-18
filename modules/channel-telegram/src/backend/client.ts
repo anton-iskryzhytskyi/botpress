@@ -1,7 +1,7 @@
 import * as sdk from 'botpress/sdk'
 import _ from 'lodash'
 import path from 'path'
-import Telegraf, { Button, CallbackButton, ContextMessageUpdate, Markup } from 'telegraf'
+import Telegraf, { Button, CallbackButton, ContextMessageUpdate, Markup, UrlButton } from 'telegraf'
 import Extra from 'telegraf/extra'
 
 import { Clients } from './typings'
@@ -104,11 +104,15 @@ async function sendCarousel(event: sdk.IO.Event, client: Telegraf<ContextMessage
 }
 
 async function sendTextMessage(event: sdk.IO.Event, client: Telegraf<ContextMessageUpdate>, chatId: string) {
-  const keyboard = Markup.keyboard(keyboardButtons<Button>(event.payload.quick_replies))
+  const inline = _.get(event, 'payload.inline', false)
+
+  const keyboard = inline
+    ? Markup.inlineKeyboard(keyboardButtons<CallbackButton>(event.payload.quick_replies))
+    : Markup.keyboard(keyboardButtons<Button>(event.payload.quick_replies))
   if (event.payload.markdown != false) {
     // Attempt at sending with markdown first, fallback to regular text on failure
     await client.telegram
-      .sendMessage(chatId, event.preview, Extra.markdown(true).markup({ ...keyboard, one_time_keyboard: true }))
+      .sendMessage(chatId, event.preview, Extra.markdown(true).markup({ ...keyboard, one_time_keyboard: true, resize_keyboard: true }))
       .catch(() =>
         client.telegram.sendMessage(
           chatId,
@@ -156,21 +160,35 @@ function parseTyping(typing) {
   return Math.max(typing, 500)
 }
 
+const buildButton = <T extends UrlButton | CallbackButton>(data: any): T => {
+  if (data.url) { return Markup.urlButton(data.title, data.url) as any }
+
+  return Markup.callbackButton(data.title, data.payload) as any
+}
+
+const buildShape = <T>(buttons: any[], width: number = 2): T[][] => {
+  const height = Math.ceil(buttons.length / width)
+  const array = _.range(height).map(() => [])
+  buttons.forEach((button, i) => {
+    const row = Math.floor(i / width)
+    array[row].push(button)
+  })
+  return array
+}
+
+
 function keyboardButtons<T>(arr: any[] | undefined): T[] | undefined {
-  if (!arr || !arr.length) {
+  if (!Array.isArray(arr)) {
     return undefined
   }
 
-  const rows = arr[0].length ? arr : [arr]
+  const is1D = !Array.isArray(arr[0])
 
-  return rows.map(
-    row =>
-      row.map(x => {
-        if (x.url) {
-          return Markup.urlButton(x.title, x.url)
-        }
+  if (!is1D) {
+    return arr.map(row => row.map(buildButton))
+  }
 
-        return Markup.callbackButton(x.title, x.payload)
-      }) as any
-  )
+  const buttons = arr.map(buildButton)
+
+  return buildShape(buttons) as any
 }
