@@ -6,7 +6,12 @@ import Extra from 'telegraf/extra'
 
 import { Clients } from './typings'
 
-const outgoingTypes = ['text', 'typing', 'image', 'login_prompt', 'carousel']
+const outgoingEventTypeHandlerMapper = {
+  typing: sendTyping,
+  text: sendTextMessage,
+  image: sendImage,
+  carousel: sendCarousel,
+}
 
 export const sendEvent = async (bp: typeof sdk, botId: string, ctx: ContextMessageUpdate, args: { type: string }) => {
   // NOTE: getUpdate and setWebhook dot not return the same context mapping
@@ -65,22 +70,13 @@ export async function setupMiddleware(bp: typeof sdk, clients: Clients) {
     const messageType = event.type === 'default' ? 'text' : event.type
     const chatId = event.threadId || event.target
 
-    if (!_.includes(outgoingTypes, messageType)) {
+    const handle = outgoingEventTypeHandlerMapper[messageType]
+
+    if (handle === undefined) {
       return next(new Error('Unsupported event type: ' + event.type))
     }
 
-    if (messageType === 'typing') {
-      await sendTyping(event, client, chatId)
-    } else if (messageType === 'text') {
-      await sendTextMessage(event, client, chatId)
-    } else if (messageType === 'image') {
-      await sendImage(event, client, chatId)
-    } else if (messageType === 'carousel') {
-      await sendCarousel(event, client, chatId)
-    } else {
-      // TODO We don't support sending files, location requests (and probably more) yet
-      throw new Error(`Message type "${messageType}" not implemented yet`)
-    }
+    await handle(event, client, chatId)
 
     next(undefined, false)
   }
